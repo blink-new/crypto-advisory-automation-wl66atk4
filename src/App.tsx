@@ -29,7 +29,18 @@ function App() {
             
             // Try to save to database, keep in localStorage if database not available
             try {
-              await blink.db.subscriptions.create(subscriptionData)
+              await blink.db.subscriptions.create({
+                id: subscriptionData.id,
+                userId: state.user.id,
+                email: subscriptionData.email,
+                name: subscriptionData.name,
+                country: subscriptionData.country,
+                plan: subscriptionData.plan,
+                frequency: subscriptionData.frequency,
+                accessCode: subscriptionData.accessCode,
+                status: subscriptionData.status,
+                createdAt: subscriptionData.createdAt
+              })
               localStorage.removeItem('pendingSubscription')
             } catch (dbError) {
               console.log('Database not available yet, keeping subscription in localStorage')
