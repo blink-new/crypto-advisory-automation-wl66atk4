@@ -27,25 +27,8 @@ function App() {
             // Update with actual user ID
             subscriptionData.userId = state.user.id
             
-            // Try to save to database, keep in localStorage if database not available
-            try {
-              await blink.db.subscriptions.create({
-                id: subscriptionData.id,
-                userId: state.user.id,
-                email: subscriptionData.email,
-                name: subscriptionData.name,
-                country: subscriptionData.country,
-                plan: subscriptionData.plan,
-                frequency: subscriptionData.frequency,
-                accessCode: subscriptionData.accessCode,
-                status: subscriptionData.status,
-                createdAt: subscriptionData.createdAt
-              })
-              localStorage.removeItem('pendingSubscription')
-            } catch (dbError) {
-              console.log('Database not available yet, keeping subscription in localStorage')
-              // Keep in localStorage for now, will be processed by Dashboard
-            }
+            // Keep in localStorage for now, will be processed by Dashboard
+            // Database not available, so we'll handle this in the Dashboard component
             
           } catch (error) {
             console.error('Error processing pending subscription:', error)

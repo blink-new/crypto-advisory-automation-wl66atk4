@@ -55,100 +55,44 @@ export default function Dashboard({ user }: DashboardProps) {
 
   const loadUserData = useCallback(async () => {
     try {
-      // Try to load subscription from database first, fallback to localStorage
-      let subscriptionLoaded = false
-      
-      try {
-        const dbSubscriptions = await blink.db.subscriptions.list({
-          where: { email: user.email },
-          limit: 1
-        })
-        
-        if (dbSubscriptions.length > 0) {
-          setSubscription(dbSubscriptions[0])
-          subscriptionLoaded = true
+      // Load subscription from localStorage (database not available)
+      const pendingSubscription = localStorage.getItem('pendingSubscription')
+      if (pendingSubscription) {
+        try {
+          const subscriptionData = JSON.parse(pendingSubscription)
+          subscriptionData.userId = user.id
+          setSubscription(subscriptionData)
+          
+          // Move to user-specific localStorage
+          localStorage.setItem(`subscription_${user.id}`, JSON.stringify(subscriptionData))
+          localStorage.removeItem('pendingSubscription')
+          
+        } catch (error) {
+          console.error('Error processing pending subscription:', error)
         }
-      } catch (dbError) {
-        console.log('Database not available, using localStorage fallback')
-      }
-
-      // If no subscription from database, check localStorage
-      if (!subscriptionLoaded) {
-        const pendingSubscription = localStorage.getItem('pendingSubscription')
-        if (pendingSubscription) {
+      } else {
+        // Try to load existing subscription from localStorage
+        const existingSubscription = localStorage.getItem(`subscription_${user.id}`)
+        if (existingSubscription) {
           try {
-            const subscriptionData = JSON.parse(pendingSubscription)
-            subscriptionData.userId = user.id
-            setSubscription(subscriptionData)
-            
-            // Try to save to database, keep in localStorage if database not available
-            try {
-              await blink.db.subscriptions.create({
-                id: subscriptionData.id,
-                userId: user.id,
-                email: subscriptionData.email,
-                name: subscriptionData.name,
-                country: subscriptionData.country,
-                plan: subscriptionData.plan,
-                frequency: subscriptionData.frequency,
-                accessCode: subscriptionData.accessCode,
-                status: subscriptionData.status,
-                createdAt: subscriptionData.createdAt
-              })
-              localStorage.removeItem('pendingSubscription')
-            } catch (dbError) {
-              console.log('Database not available, keeping subscription in localStorage')
-              localStorage.setItem(`subscription_${user.id}`, JSON.stringify(subscriptionData))
-              localStorage.removeItem('pendingSubscription')
-            }
-            
+            setSubscription(JSON.parse(existingSubscription))
           } catch (error) {
-            console.error('Error processing pending subscription:', error)
-          }
-        } else {
-          // Try to load existing subscription from localStorage
-          const existingSubscription = localStorage.getItem(`subscription_${user.id}`)
-          if (existingSubscription) {
-            try {
-              setSubscription(JSON.parse(existingSubscription))
-            } catch (error) {
-              console.error('Error parsing existing subscription:', error)
-            }
+            console.error('Error parsing existing subscription:', error)
           }
         }
       }
 
-      // Try to load content ideas from database first, fallback to localStorage
-      let contentLoaded = false
-      
-      try {
-        const dbContentIdeas = await blink.db.contentIdeas.list({
-          where: { userId: user.id },
-          orderBy: { createdAt: 'desc' },
-          limit: 6
-        })
-        
-        if (dbContentIdeas.length > 0) {
-          setContentIdeas(dbContentIdeas)
-          contentLoaded = true
-        }
-      } catch (dbError) {
-        console.log('Database not available for content ideas, using localStorage fallback')
-      }
-
-      // If no content from database, check localStorage or use demo data
-      if (!contentLoaded) {
-        const storedIdeas = localStorage.getItem(`contentIdeas_${user.id}`)
-        if (storedIdeas) {
-          try {
-            setContentIdeas(JSON.parse(storedIdeas))
-          } catch (error) {
-            console.error('Error parsing stored content ideas:', error)
-            setContentIdeas(getDefaultContentIdeas())
-          }
-        } else {
+      // Load content ideas from localStorage or use demo data
+      const storedIdeas = localStorage.getItem(`contentIdeas_${user.id}`)
+      if (storedIdeas) {
+        try {
+          setContentIdeas(JSON.parse(storedIdeas))
+        } catch (error) {
+          console.error('Error parsing stored content ideas:', error)
           setContentIdeas(getDefaultContentIdeas())
         }
+      } else {
+        setContentIdeas(getDefaultContentIdeas())
       }
 
     } catch (error) {
@@ -156,7 +100,7 @@ export default function Dashboard({ user }: DashboardProps) {
     } finally {
       setLoading(false)
     }
-  }, [user.id, user.email])
+  }, [user.id])
 
   useEffect(() => {
     loadUserData()
@@ -186,19 +130,9 @@ Sé visual, claro y práctico. Evita jerga técnica.`,
         status: 'draft'
       }))
 
-      // Try to save to database first, fallback to localStorage
+      // Save to localStorage (database not available)
       const newContentIdeas = [...ideas, ...contentIdeas]
-      
-      try {
-        // Save new ideas to database
-        for (const idea of ideas) {
-          await blink.db.contentIdeas.create(idea)
-        }
-        console.log('Content ideas saved to database')
-      } catch (dbError) {
-        console.log('Database not available, saving to localStorage')
-        localStorage.setItem(`contentIdeas_${user.id}`, JSON.stringify(newContentIdeas))
-      }
+      localStorage.setItem(`contentIdeas_${user.id}`, JSON.stringify(newContentIdeas))
 
       // Update local state
       setContentIdeas(newContentIdeas)
