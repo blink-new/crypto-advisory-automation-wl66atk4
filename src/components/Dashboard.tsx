@@ -32,6 +32,27 @@ export default function Dashboard({ user }: DashboardProps) {
   const [contentIdeas, setContentIdeas] = useState([])
   const [loading, setLoading] = useState(true)
 
+  const getDefaultContentIdeas = () => [
+    {
+      id: 'demo_1',
+      content: '📈 Bitcoin vs Oro: ¿Cuál es mejor reserva de valor?\n\nExplora las diferencias entre Bitcoin y el oro tradicional como activos de refugio. Aprende sobre volatilidad, liquidez y adopción institucional.',
+      status: 'draft',
+      createdAt: new Date().toISOString()
+    },
+    {
+      id: 'demo_2', 
+      content: '🔐 Seguridad en Crypto: Wallets Calientes vs Frías\n\nDescubre las diferencias entre wallets de software y hardware. Conoce cuándo usar cada tipo y cómo proteger tus criptomonedas.',
+      status: 'draft',
+      createdAt: new Date().toISOString()
+    },
+    {
+      id: 'demo_3',
+      content: '💰 DCA: La estrategia de inversión más simple\n\nAprende sobre Dollar Cost Averaging, la técnica que reduce el riesgo de volatilidad comprando pequeñas cantidades regularmente.',
+      status: 'draft',
+      createdAt: new Date().toISOString()
+    }
+  ]
+
   const loadUserData = useCallback(async () => {
     try {
       // Check for pending subscription in localStorage first
@@ -41,57 +62,36 @@ export default function Dashboard({ user }: DashboardProps) {
           const subscriptionData = JSON.parse(pendingSubscription)
           subscriptionData.userId = user.id
           setSubscription(subscriptionData)
+          
+          // Save to localStorage with user ID for persistence
+          localStorage.setItem(`subscription_${user.id}`, JSON.stringify(subscriptionData))
           localStorage.removeItem('pendingSubscription')
         } catch (error) {
           console.error('Error processing pending subscription:', error)
         }
-      }
-
-      // Try to load user subscription from database
-      try {
-        const subs = await blink.db.subscriptions.list({
-          where: { email: user.email },
-          limit: 1
-        })
-        
-        if (subs.length > 0) {
-          setSubscription(subs[0])
-        }
-      } catch (dbError) {
-        console.log('Database not available yet, using localStorage data')
-        // Database not available, continue with localStorage data
-      }
-
-      // Try to load recent content ideas
-      try {
-        const ideas = await blink.db.contentIdeas.list({
-          orderBy: { createdAt: 'desc' },
-          limit: 6
-        })
-        setContentIdeas(ideas)
-      } catch (dbError) {
-        console.log('Content ideas table not available yet')
-        // Set some demo content ideas for now
-        setContentIdeas([
-          {
-            id: 'demo_1',
-            content: '📈 Bitcoin vs Oro: ¿Cuál es mejor reserva de valor?\n\nExplora las diferencias entre Bitcoin y el oro tradicional como activos de refugio. Aprende sobre volatilidad, liquidez y adopción institucional.',
-            status: 'draft',
-            createdAt: new Date().toISOString()
-          },
-          {
-            id: 'demo_2', 
-            content: '🔐 Seguridad en Crypto: Wallets Calientes vs Frías\n\nDescubre las diferencias entre wallets de software y hardware. Conoce cuándo usar cada tipo y cómo proteger tus criptomonedas.',
-            status: 'draft',
-            createdAt: new Date().toISOString()
-          },
-          {
-            id: 'demo_3',
-            content: '💰 DCA: La estrategia de inversión más simple\n\nAprende sobre Dollar Cost Averaging, la técnica que reduce el riesgo de volatilidad comprando pequeñas cantidades regularmente.',
-            status: 'draft',
-            createdAt: new Date().toISOString()
+      } else {
+        // Try to load existing subscription from localStorage
+        const existingSubscription = localStorage.getItem(`subscription_${user.id}`)
+        if (existingSubscription) {
+          try {
+            setSubscription(JSON.parse(existingSubscription))
+          } catch (error) {
+            console.error('Error parsing existing subscription:', error)
           }
-        ])
+        }
+      }
+
+      // Load content ideas from localStorage or use demo data
+      const storedIdeas = localStorage.getItem('contentIdeas')
+      if (storedIdeas) {
+        try {
+          setContentIdeas(JSON.parse(storedIdeas))
+        } catch (error) {
+          console.error('Error parsing stored content ideas:', error)
+          setContentIdeas(getDefaultContentIdeas())
+        }
+      } else {
+        setContentIdeas(getDefaultContentIdeas())
       }
 
     } catch (error) {
@@ -99,7 +99,7 @@ export default function Dashboard({ user }: DashboardProps) {
     } finally {
       setLoading(false)
     }
-  }, [user.email, user.id])
+  }, [user.id])
 
   useEffect(() => {
     loadUserData()
@@ -128,18 +128,10 @@ Sé visual, claro y práctico. Evita jerga técnica.`,
         status: 'draft'
       }))
 
-      // Try to save to database, fallback to local state
-      try {
-        for (const idea of ideas) {
-          await blink.db.contentIdeas.create(idea)
-        }
-        // Reload content ideas from database
-        loadUserData()
-      } catch (dbError) {
-        console.log('Database not available, updating local state')
-        // Database not available, just update local state
-        setContentIdeas(prev => [...ideas, ...prev])
-      }
+      // Update local state and save to localStorage
+      const newContentIdeas = [...ideas, ...contentIdeas]
+      setContentIdeas(newContentIdeas)
+      localStorage.setItem('contentIdeas', JSON.stringify(newContentIdeas))
 
     } catch (error) {
       console.error('Error generating content ideas:', error)
