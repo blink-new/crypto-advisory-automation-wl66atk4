@@ -14,7 +14,7 @@ function App() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const unsubscribe = blink.auth.onAuthStateChanged((state) => {
+    const unsubscribe = blink.auth.onAuthStateChanged(async (state) => {
       setUser(state.user)
       setLoading(state.isLoading)
       
@@ -27,11 +27,15 @@ function App() {
             // Update with actual user ID
             subscriptionData.userId = state.user.id
             
-            // Save to database (when available)
-            // blink.db.subscriptions.create(subscriptionData)
+            // Try to save to database, keep in localStorage if database not available
+            try {
+              await blink.db.subscriptions.create(subscriptionData)
+              localStorage.removeItem('pendingSubscription')
+            } catch (dbError) {
+              console.log('Database not available yet, keeping subscription in localStorage')
+              // Keep in localStorage for now, will be processed by Dashboard
+            }
             
-            // Clear pending subscription
-            localStorage.removeItem('pendingSubscription')
           } catch (error) {
             console.error('Error processing pending subscription:', error)
           }
