@@ -32,11 +32,7 @@ export default function Dashboard({ user }: DashboardProps) {
   const [contentIdeas, setContentIdeas] = useState([])
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    loadUserData()
-  }, [])
-
-  const loadUserData = async () => {
+  const loadUserData = useCallback(async () => {
     try {
       // Load user subscription
       const subs = await blink.db.subscriptions.list({
@@ -60,7 +56,11 @@ export default function Dashboard({ user }: DashboardProps) {
     } finally {
       setLoading(false)
     }
-  }
+  }, [user.email])
+
+  useEffect(() => {
+    loadUserData()
+  }, [loadUserData])
 
   const generateContentIdeas = async () => {
     try {
